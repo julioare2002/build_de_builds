@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wild Rift Builds - Guía de Campeones</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <h1>WILD RIFT BUILDS</h1>
+        <p class="subtitle">Guía de builds actualizada</p>
+      </header>
+
+      <main class="main-content">
+        <!-- Filtro de líneas -->
+        <section class="line-filter">
+          <button class="line-btn active" data-line="all">Todas</button>
+          <button class="line-btn" data-line="top">Top</button>
+          <button class="line-btn" data-line="jungle">Jungla</button>
+          <button class="line-btn" data-line="mid">Mid</button>
+          <button class="line-btn" data-line="adc">ADC</button>
+          <button class="line-btn" data-line="support">Support</button>
+        </section>
+
+        <!-- Selector de campeones -->
+        <section class="champion-selector">
+          <h2>Selecciona un Campeón</h2>
+          <label class="search-label" for="championSearch">Buscar campeón</label>
+          <input
+            class="champion-search"
+            id="championSearch"
+            type="search"
+            placeholder="Escribe el nombre de un campeón..."
+            autocomplete="off"
+          />
+          <p class="search-results" id="searchResults" aria-live="polite"></p>
+          <div class="champions-grid" id="championsGrid">
+            <!-- Los campeones se cargarán aquí dinámicamente -->
+          </div>
+        </section>
+
+        <!-- Panel de build -->
+        <section class="build-display" id="buildDisplay" style="display: none">
+          <div class="build-header">
+            <img id="championImage" src="" alt="" class="champion-image" />
+            <div class="champion-info">
+              <h2 id="championName"></h2>
+              <p id="championRole" class="role-badge"></p>
+              <p id="championDifficulty" class="difficulty-badge"></p>
+            </div>
+          </div>
+
+          <!-- Filtros de modo -->
+          <div class="build-filters">
+            <div class="mode-filter">
+              <button class="mode-btn active" data-mode="ranked">Ranked</button>
+              <button class="mode-btn" data-mode="aram">ARAM</button>
+            </div>
+          </div>
+
+          <!-- Items grid -->
+          <div class="build-section">
+            <h3>Build Recomendado</h3>
+            <p class="section-subtitle">
+              Haz click en un item para ver detalles y justificación
+            </p>
+
+            <div class="items-container">
+              <div class="items-row">
+                <div class="item-slot" data-slot="starting">
+                  <div class="slot-label">Inicio</div>
+                  <div class="item-content" id="startingItem"></div>
+                </div>
+                <div class="item-slot" data-slot="boots">
+                  <div class="slot-label">Botas</div>
+                  <div class="item-content" id="bootsItem"></div>
+                </div>
+                <div class="item-slot" data-slot="core1">
+                  <div class="slot-label">Core 1</div>
+                  <div class="item-content" id="core1Item"></div>
+                </div>
+                <div class="item-slot" data-slot="core2">
+                  <div class="slot-label">Core 2</div>
+                  <div class="item-content" id="core2Item"></div>
+                </div>
+                <div class="item-slot" data-slot="core3">
+                  <div class="slot-label">Core 3</div>
+                  <div class="item-content" id="core3Item"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Runas -->
+          <div class="build-section">
+            <h3>Runas</h3>
+            <p class="section-subtitle">
+              Haz click en una runa para ver detalles
+            </p>
+            <div class="runes-grid" id="runesGrid">
+              <!-- Runas se cargarán aquí -->
+            </div>
+          </div>
+
+          <!-- Items Situacionales -->
+          <div class="build-section">
+            <h3>Items Situacionales</h3>
+            <p class="section-subtitle">Opciones según el matchup</p>
+            <div class="items-grid" id="situationalGrid">
+              <!-- Items situacionales se cargarán aquí -->
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- Modal -->
+      <div class="modal" id="itemModal" style="display: none">
+        <div class="modal-content">
+          <span class="close-modal" id="closeModal">&times;</span>
+          <div class="modal-header">
+            <h2 id="modalItemName"></h2>
+            <p id="modalItemNameEn" class="item-name-en"></p>
+          </div>
+          <div class="modal-body">
+            <div class="item-detail">
+              <h4>Descripción</h4>
+              <p id="modalItemDesc"></p>
+            </div>
+            <div class="item-detail">
+              <h4>Estadísticas</h4>
+              <p id="modalItemStats"></p>
+            </div>
+            <div class="item-detail">
+              <h4>Costo</h4>
+              <p id="modalItemCost" class="item-cost"></p>
+            </div>
+            <div class="item-detail">
+              <h4>¿Por qué este item?</h4>
+              <p id="modalItemReason" class="item-reason"></p>
+            </div>
+            <div class="item-detail" id="situationDetail" style="display: none">
+              <h4>Situación</h4>
+              <p id="modalItemSituation" class="item-situation"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="footer">
+        <p>Proyecto personal - Datos actualizados manualmente</p>
+      </footer>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
