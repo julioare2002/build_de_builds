@@ -156,6 +156,14 @@
           <button class="line-btn" data-line="mid">Mid</button>
           <button class="line-btn" data-line="adc">ADC</button>
           <button class="line-btn" data-line="support">Support</button>
+          <button
+            class="favorites-toggle"
+            id="favoritesToggle"
+            type="button"
+            aria-pressed="false"
+          >
+            ☆ Favoritos
+          </button>
         </section>
 
         <!-- Selector de campeones -->
@@ -195,6 +203,61 @@
                     <p id="championDifficulty" class="difficulty-badge"></p>
                   </div>
                 </div>
+
+                <section
+                  class="build-section tactical-section"
+                  id="strategySection"
+                  aria-labelledby="strategyTitle"
+                >
+                  <div class="tactical-heading">
+                    <div>
+                      <h3 id="strategyTitle">Análisis de partida</h3>
+                      <p class="section-subtitle">
+                        Combos, plan de mapa y composición para este campeón.
+                      </p>
+                    </div>
+                    <span class="patch-badge">Wild Rift · 7.3e</span>
+                  </div>
+                  <p
+                    class="tactical-status"
+                    id="tacticalStatus"
+                    aria-live="polite"
+                  ></p>
+                  <div class="tactical-grid">
+                    <article class="tactical-card combo-card">
+                      <h4>Combos recomendados</h4>
+                      <div id="comboContent"></div>
+                    </article>
+                    <article class="tactical-card">
+                      <h4>Fortalezas</h4>
+                      <ul id="strengthsList"></ul>
+                    </article>
+                    <article class="tactical-card">
+                      <h4>Debilidades y respuesta</h4>
+                      <ul id="weaknessesList"></ul>
+                    </article>
+                    <article class="tactical-card">
+                      <h4>Plan de partida</h4>
+                      <ul id="strategyList"></ul>
+                    </article>
+                    <article class="tactical-card">
+                      <h4>Dúos y sinergias</h4>
+                      <ul id="synergiesList"></ul>
+                    </article>
+                    <article class="tactical-card">
+                      <h4>Matchups difíciles</h4>
+                      <ul id="matchupsList"></ul>
+                    </article>
+                  </div>
+                  <a
+                    class="tactical-source"
+                    id="tacticalSource"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    hidden
+                    >Ver fuentes de esta ficha ↗</a
+                  >
+                </section>
 
                 <!-- Filtros de modo -->
                 <div class="build-filters">

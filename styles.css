@@ -113,7 +113,8 @@ button:focus-visible,
 }
 
 .line-btn,
-.mode-btn {
+.mode-btn,
+.favorites-toggle {
   min-height: 42px;
   padding: 8px 18px;
   border: var(--border);
@@ -132,18 +133,21 @@ button:focus-visible,
 }
 
 .line-btn:hover,
-.mode-btn:hover {
+.mode-btn:hover,
+.favorites-toggle:hover {
   box-shadow: 5px 6px 0 var(--teal);
   transform: translate(-1px, -2px);
 }
 
 .line-btn:active,
-.mode-btn:active {
+.mode-btn:active,
+.favorites-toggle:active {
   box-shadow: 1px 1px 0 var(--teal);
   transform: translate(2px, 3px);
 }
 
 .line-btn.active,
+.favorites-toggle.active,
 .mode-btn.active {
   background: var(--yellow);
 }
@@ -919,5 +923,305 @@ button:focus-visible,
     width: 44px;
     height: 44px;
     flex-basis: 44px;
+  }
+}
+
+/* Ficha táctica y favoritos */
+.champion-card {
+  position: relative;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0;
+  min-height: 82px;
+  padding: 0;
+}
+
+.champion-select {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.champion-select img {
+  width: 60px;
+  height: 60px;
+  flex: 0 0 60px;
+  aspect-ratio: 1;
+  border-radius: 8px;
+}
+
+.champion-select h3 {
+  min-width: 0;
+  margin: 0;
+  font-size: clamp(1rem, 1.8vw, 1.35rem);
+  line-height: 1.15;
+}
+
+.favorite-btn {
+  flex: 0 0 42px;
+  align-self: center;
+  margin-right: 7px;
+  padding: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.favorite-btn[aria-pressed="true"] {
+  color: var(--yellow);
+}
+.favorite-btn:hover {
+  transform: scale(1.15);
+}
+.champion-select:focus-visible,
+.favorite-btn:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+.tactical-section {
+  margin-top: 18px;
+}
+.tactical-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.tactical-heading .section-subtitle {
+  margin: 6px 0 0;
+}
+.patch-badge {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--green);
+  color: var(--cream);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.tactical-status {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+.tactical-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: 12px;
+}
+.tactical-card {
+  min-width: 0;
+  padding: 15px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--cream);
+  box-shadow: 4px 4px 0 var(--teal);
+  color: var(--ink);
+}
+.tactical-card h4 {
+  margin-bottom: 9px;
+  color: var(--ink);
+  font-family: var(--font-title);
+  font-size: 1rem;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+.tactical-card ul,
+.tactical-card ol {
+  display: grid;
+  gap: 8px;
+  padding-left: 20px;
+  color: var(--ink);
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+.combo-block + .combo-block {
+  margin-top: 15px;
+  padding-top: 13px;
+  border-top: 2px dashed rgba(10, 15, 36, 0.22);
+}
+.combo-block h5 {
+  margin: 0 0 7px;
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+.combo-block p {
+  margin-top: 8px;
+  color: var(--ink);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+.tactical-source {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  margin-top: 16px;
+  padding: 7px 13px;
+  border: 2px solid var(--teal);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--cream);
+  font-weight: 800;
+  text-decoration: none;
+  transition:
+    background 140ms ease,
+    transform 140ms ease;
+}
+.tactical-source:hover {
+  background: var(--teal-dark);
+  transform: translateY(-1px);
+}
+.tactical-source[hidden] {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .champion-card {
+    min-height: 68px;
+  }
+  .champion-select {
+    gap: 8px;
+    padding: 7px;
+  }
+  .champion-select img {
+    width: 50px;
+    height: 50px;
+    flex-basis: 50px;
+  }
+  .favorite-btn {
+    flex-basis: 34px;
+    margin-right: 4px;
+    font-size: 1.55rem;
+  }
+  .tactical-heading {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 360px) {
+  .champion-select img {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+  }
+}
+
+/* Favoritos comparte el lenguaje visual de los filtros y conserva una anchura compacta. */
+.favorites-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* Ajuste de proporciones para que controles y paneles respiren mejor en móvil. */
+@media (max-width: 640px) {
+  body {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+  .line-filter {
+    gap: 9px;
+    margin-bottom: 28px;
+  }
+  .line-btn,
+  .favorites-toggle {
+    min-height: 40px;
+    padding: 7px 14px;
+    font-size: 0.94rem;
+  }
+  .champion-selector {
+    margin-bottom: 30px;
+  }
+  .champion-selector h2 {
+    margin-bottom: 12px;
+  }
+  .champion-search {
+    width: 100%;
+    min-height: 48px;
+    padding: 11px 15px;
+  }
+  .build-unfold {
+    padding: clamp(14px, 4vw, 22px);
+  }
+  .build-header {
+    gap: 16px;
+    margin-bottom: 18px;
+    padding-bottom: 18px;
+  }
+  .champion-image {
+    width: 82px;
+    height: 82px;
+  }
+  .build-filters {
+    justify-content: flex-start;
+    margin-bottom: 18px;
+  }
+  .mode-filter {
+    gap: 6px;
+    padding: 5px;
+    border-radius: 16px;
+  }
+  .mode-btn {
+    min-height: 36px;
+    padding: 5px 13px;
+  }
+  .items-row {
+    min-width: 620px;
+    gap: 12px;
+  }
+  .runes-grid {
+    gap: 10px;
+  }
+  .rune-slot {
+    min-height: 72px;
+    padding: 10px;
+  }
+}
+
+@media (max-width: 380px) {
+  body {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+  .line-filter {
+    gap: 7px;
+  }
+  .line-btn,
+  .favorites-toggle {
+    min-height: 38px;
+    padding: 6px 11px;
+    font-size: 0.88rem;
+  }
+  .champion-image {
+    width: 68px;
+    height: 68px;
+  }
+  .build-header {
+    gap: 12px;
+  }
+  .mode-btn {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+  .tactical-card {
+    padding: 12px;
   }
 }

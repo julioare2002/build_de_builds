@@ -4,6 +4,9 @@ let currentChampion = null;
 let currentMode = "ranked";
 let currentLine = "all";
 let currentSearch = "";
+let favoritesOnly = false;
+const FAVORITES_STORAGE_KEY = "wildrift-builds-favorites-v1";
+let favoriteChampionIds = loadFavoriteChampionIds();
 
 // Elementos que se despliegan
 const UNFOLD_MS = 340;
@@ -17,6 +20,60 @@ function normalizeSearchText(value) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("es");
+}
+
+function loadFavoriteChampionIds() {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(FAVORITES_STORAGE_KEY) || "[]",
+    );
+    return new Set(
+      Array.isArray(saved) ? saved.filter((id) => typeof id === "string") : [],
+    );
+  } catch (error) {
+    console.warn("No se pudieron leer los favoritos guardados:", error);
+    return new Set();
+  }
+}
+
+function saveFavoriteChampionIds() {
+  try {
+    localStorage.setItem(
+      FAVORITES_STORAGE_KEY,
+      JSON.stringify([...favoriteChampionIds]),
+    );
+  } catch (error) {
+    console.warn("No se pudieron guardar los favoritos:", error);
+  }
+}
+
+function favoriteKey(champion) {
+  return String(champion.id || champion.name)
+    .trim()
+    .toLocaleLowerCase("es");
+}
+
+function updateFavoriteButton(button, champion) {
+  const isFavorite = favoriteChampionIds.has(favoriteKey(champion));
+  button.textContent = isFavorite ? "★" : "☆";
+  button.setAttribute("aria-pressed", String(isFavorite));
+  button.setAttribute(
+    "aria-label",
+    `${isFavorite ? "Quitar" : "Agregar"} ${champion.name} ${isFavorite ? "de" : "a"} favoritos`,
+  );
+  button.title = isFavorite ? "Quitar de favoritos" : "Agregar a favoritos";
+}
+
+function toggleFavorite(champion, button) {
+  const key = favoriteKey(champion);
+  if (favoriteChampionIds.has(key)) favoriteChampionIds.delete(key);
+  else favoriteChampionIds.add(key);
+  saveFavoriteChampionIds();
+  updateFavoriteButton(button, champion);
+  if (favoritesOnly) updateChampionList();
+  const toggle = document.getElementById("favoritesToggle");
+  if (toggle)
+    toggle.textContent = `${favoritesOnly ? "★" : "☆"} Favoritos (${favoriteChampionIds.size})`;
 }
 
 /* =========================================================
@@ -112,10 +169,14 @@ function renderChampions(champions) {
   }`;
 
   champions.forEach((champion) => {
-    const card = document.createElement("button");
+    const card = document.createElement("article");
     card.className = "champion-card";
-    card.type = "button";
     card.setAttribute("aria-expanded", "false");
+
+    const selectButton = document.createElement("button");
+    selectButton.className = "champion-select";
+    selectButton.type = "button";
+    selectButton.setAttribute("aria-label", `Ver build de ${champion.name}`);
 
     const image = document.createElement("img");
     image.src = champion.image;
@@ -124,13 +185,21 @@ function renderChampions(champions) {
 
     const name = document.createElement("h3");
     name.textContent = champion.name;
+    selectButton.append(image, name);
 
-    card.append(image, name);
-
-    card.addEventListener("click", () => {
-      selectChampion(champion, card);
+    const favoriteButton = document.createElement("button");
+    favoriteButton.className = "favorite-btn";
+    favoriteButton.type = "button";
+    updateFavoriteButton(favoriteButton, champion);
+    favoriteButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleFavorite(champion, favoriteButton);
     });
 
+    selectButton.addEventListener("click", () =>
+      selectChampion(champion, card),
+    );
+    card.append(selectButton, favoriteButton);
     grid.appendChild(card);
   });
 }
@@ -141,7 +210,9 @@ function updateChampionList() {
     const matchesLine = currentLine === "all" || champion.line === currentLine;
     const matchesSearch =
       !search || normalizeSearchText(champion.name).includes(search);
-    return matchesLine && matchesSearch;
+    const matchesFavorites =
+      !favoritesOnly || favoriteChampionIds.has(favoriteKey(champion));
+    return matchesLine && matchesSearch && matchesFavorites;
   });
 
   renderChampions(filtered);
@@ -193,6 +264,7 @@ function selectChampion(champion, card) {
   document.getElementById("championDifficulty").textContent =
     champion.difficulty;
 
+  renderTactics(champion);
   renderBuild();
   openUnfold(buildUnfold);
 
@@ -209,6 +281,75 @@ function closeBuild(immediate = false) {
     activeChampionCard = null;
   }
   currentChampion = null;
+}
+
+function renderTactics(champion) {
+  const status = document.getElementById("tacticalStatus");
+  const sourceLink = document.getElementById("tacticalSource");
+  const data = champion.tactics;
+  const fillList = (id, items, formatter = (item) => item) => {
+    const list = document.getElementById(id);
+    list.innerHTML = "";
+    (items || []).forEach((item) => {
+      const li = document.createElement("li");
+      li.textContent = formatter(item);
+      list.appendChild(li);
+    });
+  };
+
+  if (!data) {
+    status.textContent =
+      "Esta ficha táctica todavía no está verificada para este campeón. La build sigue disponible; no mostramos combos ni sinergias inferidos.";
+    document.getElementById("comboContent").textContent =
+      "Perfil táctico pendiente de investigación individual.";
+    [
+      "strengthsList",
+      "weaknessesList",
+      "strategyList",
+      "synergiesList",
+      "matchupsList",
+    ].forEach((id) => fillList(id, []));
+    sourceLink.hidden = true;
+    return;
+  }
+
+  status.textContent = `Revisado para el parche ${data.patch}. Las recomendaciones de sinergia combinan fuente de guía y análisis del kit.`;
+  const comboRoot = document.getElementById("comboContent");
+  comboRoot.innerHTML = "";
+  (data.combos || []).forEach((combo) => {
+    const block = document.createElement("div");
+    block.className = "combo-block";
+    const title = document.createElement("h5");
+    title.textContent = combo.name;
+    const steps = document.createElement("ol");
+    combo.steps.forEach((step) => {
+      const li = document.createElement("li");
+      li.textContent = step;
+      steps.appendChild(li);
+    });
+    const use = document.createElement("p");
+    use.textContent = combo.use;
+    block.append(title, steps, use);
+    comboRoot.appendChild(block);
+  });
+  fillList("strengthsList", data.strengths);
+  fillList("weaknessesList", data.weaknesses);
+  fillList(
+    "strategyList",
+    data.strategy,
+    (item) => `${item.phase}: ${item.advice}`,
+  );
+  fillList(
+    "synergiesList",
+    data.synergies,
+    (item) => `${item.champion}: ${item.reason}`,
+  );
+  fillList("matchupsList", data.matchups);
+  if (data.sources?.length) {
+    sourceLink.href = data.sources[0].url;
+    sourceLink.textContent = "Ver fuentes de esta ficha ↗";
+    sourceLink.hidden = false;
+  } else sourceLink.hidden = true;
 }
 
 // Renderizar build completo
@@ -457,6 +598,16 @@ function setupFilters() {
       e.currentTarget.classList.add("active");
       filterChampionsByLine(e.currentTarget.dataset.line);
     });
+  });
+
+  const favoritesToggle = document.getElementById("favoritesToggle");
+  favoritesToggle.textContent = `☆ Favoritos (${favoriteChampionIds.size})`;
+  favoritesToggle.addEventListener("click", () => {
+    favoritesOnly = !favoritesOnly;
+    favoritesToggle.classList.toggle("active", favoritesOnly);
+    favoritesToggle.setAttribute("aria-pressed", String(favoritesOnly));
+    favoritesToggle.textContent = `${favoritesOnly ? "★" : "☆"} Favoritos (${favoriteChampionIds.size})`;
+    updateChampionList();
   });
 
   document.getElementById("championSearch").addEventListener("input", (e) => {
