@@ -11,6 +11,134 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
+
+    <!-- Estilos del despliegue (acordeón). Puedes moverlos luego a tu CSS. -->
+    <style>
+      /* Contenedor que se despliega suavemente (0 -> alto real del contenido) */
+      .unfold {
+        display: grid;
+        grid-column: 1 / -1;
+        min-width: 0;
+        grid-template-rows: 0fr;
+        visibility: hidden;
+        transition:
+          grid-template-rows 320ms ease,
+          visibility 0s linear 320ms;
+      }
+
+      .unfold.open {
+        grid-template-rows: 1fr;
+        visibility: visible;
+        transition:
+          grid-template-rows 320ms ease,
+          visibility 0s;
+      }
+
+      .unfold-inner {
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      /* Espacio para que no se corten las sombras duras */
+      .unfold-pad {
+        padding: 0 12px 12px 0;
+      }
+
+      .build-unfold .build-display {
+        margin-top: 8px;
+      }
+
+      /* Tarjeta de campeón / ítem / runa que está abierta */
+      .champion-card {
+        scroll-margin-top: 16px;
+      }
+
+      .champion-card.is-active {
+        box-shadow:
+          0 0 0 4px var(--yellow),
+          8px 8px 0 var(--teal);
+      }
+
+      .item-slot.is-active,
+      .rune-slot.is-active,
+      .item-slot-situational.is-active {
+        box-shadow:
+          0 0 0 4px var(--yellow),
+          6px 6px 0 var(--ink);
+      }
+
+      /* Panel de detalles desplegable (reemplaza al modal) */
+      .detail-unfold {
+        margin-top: 4px;
+      }
+
+      .detail-panel {
+        position: relative;
+        margin-top: 6px;
+        padding: 18px 20px;
+        border: 3px solid var(--ink);
+        border-radius: 12px;
+        background: var(--cream);
+        box-shadow: 6px 6px 0 var(--teal);
+        color: var(--ink);
+      }
+
+      .detail-head {
+        margin-bottom: 14px;
+        padding: 0 40px 12px 0;
+        border-bottom: 3px dashed rgba(10, 15, 36, 0.3);
+      }
+
+      .detail-title {
+        color: var(--ink);
+        font-family: var(--font-title);
+        font-size: clamp(1.6rem, 4vw, 2.2rem);
+        letter-spacing: 0.03em;
+        line-height: 1.05;
+        text-transform: uppercase;
+        overflow-wrap: anywhere;
+      }
+
+      .detail-close {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        display: grid;
+        width: 32px;
+        height: 32px;
+        place-items: center;
+        border: 2px solid var(--ink);
+        border-radius: 50%;
+        background: var(--yellow);
+        color: var(--ink);
+        cursor: pointer;
+        font-family: var(--font-title);
+        font-size: 1.2rem;
+        line-height: 1;
+      }
+
+      .detail-close:hover {
+        background: var(--teal);
+      }
+
+      .detail-body {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px 24px;
+      }
+
+      /* Corrección: la etiqueta ya no se monta con nombres largos */
+      .item-slot {
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 14px 14px;
+      }
+
+      .slot-label {
+        position: static;
+        flex: 0 0 auto;
+      }
+    </style>
   </head>
   <body>
     <div class="container">
@@ -33,7 +161,9 @@
         <!-- Selector de campeones -->
         <section class="champion-selector">
           <h2>Selecciona un Campeón</h2>
-          <label class="search-label" for="championSearch">Buscar campeón</label>
+          <label class="search-label" for="championSearch"
+            >Buscar campeón</label
+          >
           <input
             class="champion-search"
             id="championSearch"
@@ -47,112 +177,92 @@
           </div>
         </section>
 
-        <!-- Panel de build -->
-        <section class="build-display" id="buildDisplay" style="display: none">
-          <div class="build-header">
-            <img id="championImage" src="" alt="" class="champion-image" />
-            <div class="champion-info">
-              <h2 id="championName"></h2>
-              <p id="championRole" class="role-badge"></p>
-              <p id="championDifficulty" class="difficulty-badge"></p>
-            </div>
-          </div>
-
-          <!-- Filtros de modo -->
-          <div class="build-filters">
-            <div class="mode-filter">
-              <button class="mode-btn active" data-mode="ranked">Ranked</button>
-              <button class="mode-btn" data-mode="aram">ARAM</button>
-            </div>
-          </div>
-
-          <!-- Items grid -->
-          <div class="build-section">
-            <h3>Build Recomendado</h3>
-            <p class="section-subtitle">
-              Haz click en un item para ver detalles y justificación
-            </p>
-
-            <div class="items-container">
-              <div class="items-row">
-                <div class="item-slot" data-slot="starting">
-                  <div class="slot-label">Inicio</div>
-                  <div class="item-content" id="startingItem"></div>
+        <!-- Panel de build: el JS lo despliega justo debajo de la fila del campeón elegido -->
+        <div class="unfold build-unfold" id="buildUnfold">
+          <div class="unfold-inner">
+            <div class="unfold-pad">
+              <section class="build-display" id="buildDisplay">
+                <div class="build-header">
+                  <img
+                    id="championImage"
+                    src=""
+                    alt=""
+                    class="champion-image"
+                  />
+                  <div class="champion-info">
+                    <h2 id="championName"></h2>
+                    <p id="championRole" class="role-badge"></p>
+                    <p id="championDifficulty" class="difficulty-badge"></p>
+                  </div>
                 </div>
-                <div class="item-slot" data-slot="boots">
-                  <div class="slot-label">Botas</div>
-                  <div class="item-content" id="bootsItem"></div>
-                </div>
-                <div class="item-slot" data-slot="core1">
-                  <div class="slot-label">Core 1</div>
-                  <div class="item-content" id="core1Item"></div>
-                </div>
-                <div class="item-slot" data-slot="core2">
-                  <div class="slot-label">Core 2</div>
-                  <div class="item-content" id="core2Item"></div>
-                </div>
-                <div class="item-slot" data-slot="core3">
-                  <div class="slot-label">Core 3</div>
-                  <div class="item-content" id="core3Item"></div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <!-- Runas -->
-          <div class="build-section">
-            <h3>Runas</h3>
-            <p class="section-subtitle">
-              Haz click en una runa para ver detalles
-            </p>
-            <div class="runes-grid" id="runesGrid">
-              <!-- Runas se cargarán aquí -->
-            </div>
-          </div>
+                <!-- Filtros de modo -->
+                <div class="build-filters">
+                  <div class="mode-filter">
+                    <button class="mode-btn active" data-mode="ranked">
+                      Ranked
+                    </button>
+                    <button class="mode-btn" data-mode="aram">ARAM</button>
+                  </div>
+                </div>
 
-          <!-- Items Situacionales -->
-          <div class="build-section">
-            <h3>Items Situacionales</h3>
-            <p class="section-subtitle">Opciones según el matchup</p>
-            <div class="items-grid" id="situationalGrid">
-              <!-- Items situacionales se cargarán aquí -->
-            </div>
-          </div>
-        </section>
-      </main>
+                <!-- Items grid -->
+                <div class="build-section">
+                  <h3>Build Recomendado</h3>
+                  <p class="section-subtitle">
+                    Haz click en un item para desplegar detalles y justificación
+                  </p>
 
-      <!-- Modal -->
-      <div class="modal" id="itemModal" style="display: none">
-        <div class="modal-content">
-          <span class="close-modal" id="closeModal">&times;</span>
-          <div class="modal-header">
-            <h2 id="modalItemName"></h2>
-            <p id="modalItemNameEn" class="item-name-en"></p>
-          </div>
-          <div class="modal-body">
-            <div class="item-detail">
-              <h4>Descripción</h4>
-              <p id="modalItemDesc"></p>
-            </div>
-            <div class="item-detail">
-              <h4>Estadísticas</h4>
-              <p id="modalItemStats"></p>
-            </div>
-            <div class="item-detail">
-              <h4>Costo</h4>
-              <p id="modalItemCost" class="item-cost"></p>
-            </div>
-            <div class="item-detail">
-              <h4>¿Por qué este item?</h4>
-              <p id="modalItemReason" class="item-reason"></p>
-            </div>
-            <div class="item-detail" id="situationDetail" style="display: none">
-              <h4>Situación</h4>
-              <p id="modalItemSituation" class="item-situation"></p>
+                  <div class="items-container">
+                    <div class="items-row">
+                      <div class="item-slot" data-slot="starting">
+                        <div class="slot-label">Inicio</div>
+                        <div class="item-content" id="startingItem"></div>
+                      </div>
+                      <div class="item-slot" data-slot="boots">
+                        <div class="slot-label">Botas</div>
+                        <div class="item-content" id="bootsItem"></div>
+                      </div>
+                      <div class="item-slot" data-slot="core1">
+                        <div class="slot-label">Core 1</div>
+                        <div class="item-content" id="core1Item"></div>
+                      </div>
+                      <div class="item-slot" data-slot="core2">
+                        <div class="slot-label">Core 2</div>
+                        <div class="item-content" id="core2Item"></div>
+                      </div>
+                      <div class="item-slot" data-slot="core3">
+                        <div class="slot-label">Core 3</div>
+                        <div class="item-content" id="core3Item"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Runas -->
+                <div class="build-section">
+                  <h3>Runas</h3>
+                  <p class="section-subtitle">
+                    Haz click en una runa para desplegar detalles
+                  </p>
+                  <div class="runes-grid" id="runesGrid">
+                    <!-- Runas se cargarán aquí -->
+                  </div>
+                </div>
+
+                <!-- Items Situacionales -->
+                <div class="build-section">
+                  <h3>Items Situacionales</h3>
+                  <p class="section-subtitle">Opciones según el matchup</p>
+                  <div class="items-grid" id="situationalGrid">
+                    <!-- Items situacionales se cargarán aquí -->
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
         </div>
-      </div>
+      </main>
 
       <footer class="footer">
         <p>Proyecto personal - Datos actualizados manualmente</p>
