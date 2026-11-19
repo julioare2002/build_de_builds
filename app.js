@@ -1,4 +1,3 @@
-// Variables globales
 let allChampions = [];
 let currentChampion = null;
 let currentMode = "ranked";
@@ -7,13 +6,6 @@ let currentSearch = "";
 let favoritesOnly = false;
 const FAVORITES_STORAGE_KEY = "wildrift-builds-favorites-v1";
 let favoriteChampionIds = loadFavoriteChampionIds();
-
-// Elementos que se despliegan
-const UNFOLD_MS = 340;
-let buildUnfold = null; // panel de build completo (se inserta bajo la fila del campeón)
-let detailUnfold = null; // panel de detalles de ítem/runa (se inserta bajo la fila clickeada)
-let activeChampionCard = null;
-let activeDetailCard = null;
 
 function normalizeSearchText(value) {
   return value
@@ -53,605 +45,408 @@ function favoriteKey(champion) {
     .toLocaleLowerCase("es");
 }
 
+const lineNames = {
+  top: "Carril del Barón",
+  jungle: "Jungla",
+  mid: "Carril central",
+  adc: "Carril del Dragón",
+  support: "Soporte",
+};
+
+const purchaseSlots = [
+  ["starting", "Inicio"],
+  ["boots", "Botas"],
+  ["core1", "Core 1"],
+  ["core2", "Core 2"],
+  ["core3", "Core 3"],
+];
+
+const get = (id) => document.getElementById(id);
+const tabs = [...document.querySelectorAll('[role="tab"]')];
+const modeButtons = [...document.querySelectorAll("[data-mode]")];
+const mobile = window.matchMedia("(max-width: 720px)");
+const collator = new Intl.Collator("es", { sensitivity: "base" });
+
+function element(tag, text, className) {
+  const node = document.createElement(tag);
+  if (text) node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+
 function updateFavoriteButton(button, champion) {
   const isFavorite = favoriteChampionIds.has(favoriteKey(champion));
+  const action = isFavorite
+    ? "Quitar " + champion.name + " de favoritos"
+    : "Agregar " + champion.name + " a favoritos";
   button.textContent = isFavorite ? "★" : "☆";
   button.setAttribute("aria-pressed", String(isFavorite));
-  button.setAttribute(
-    "aria-label",
-    `${isFavorite ? "Quitar" : "Agregar"} ${champion.name} ${isFavorite ? "de" : "a"} favoritos`,
-  );
-  button.title = isFavorite ? "Quitar de favoritos" : "Agregar a favoritos";
+  button.setAttribute("aria-label", action);
+  button.title = action;
 }
 
 function toggleFavorite(champion, button) {
   const key = favoriteKey(champion);
   if (favoriteChampionIds.has(key)) favoriteChampionIds.delete(key);
   else favoriteChampionIds.add(key);
+
   saveFavoriteChampionIds();
-  updateFavoriteButton(button, champion);
-  if (favoritesOnly) updateChampionList();
-  const toggle = document.getElementById("favoritesToggle");
-  if (toggle)
-    toggle.textContent = `${favoritesOnly ? "★" : "☆"} Favoritos (${favoriteChampionIds.size})`;
-}
-
-/* =========================================================
-   Utilidades de despliegue (acordeón)
-   ========================================================= */
-
-// Abre un contenedor .unfold con animación (debe estar ya en el DOM)
-function openUnfold(el) {
-  void el.offsetHeight; // fuerza reflow para que la animación arranque desde 0
-  el.classList.add("open");
-}
-
-// Cierra un contenedor .unfold; al terminar la animación lo saca del DOM
-function closeUnfold(el, immediate = false) {
-  el.classList.remove("open");
-  if (immediate) {
-    el.remove();
-    return;
-  }
-  setTimeout(() => {
-    if (!el.classList.contains("open")) el.remove();
-  }, UNFOLD_MS);
-}
-
-// Devuelve la última tarjeta de la fila donde está `card` dentro de `container`
-function lastCardInRow(container, card) {
-  const cards = [...container.children].filter(
-    (child) => !child.classList.contains("unfold"),
-  );
-  const sameRow = cards.filter((child) => child.offsetTop === card.offsetTop);
-  return sameRow[sameRow.length - 1] || card;
-}
-
-// Pone una tarjeta como accesible (teclado) y le asigna su acción de click
-function makeInteractive(el, handler) {
-  if (handler) {
-    el.setAttribute("tabindex", "0");
-    el.setAttribute("role", "button");
-    el.setAttribute("aria-expanded", "false");
-    el.onclick = handler;
-    el.onkeydown = (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        handler();
-      }
-    };
-  } else {
-    el.removeAttribute("tabindex");
-    el.removeAttribute("role");
-    el.removeAttribute("aria-expanded");
-    el.onclick = null;
-    el.onkeydown = null;
-  }
-}
-
-/* =========================================================
-   Carga y lista de campeones
-   ========================================================= */
-
-// Cargar datos de campeones
-async function loadChampions() {
-  try {
-    const response = await fetch("champions.json");
-    const data = await response.json();
-    allChampions = data.champions;
+  if (favoritesOnly) {
     updateChampionList();
-  } catch (error) {
-    console.error("Error al cargar los campeones:", error);
+    get("favoritesToggle").focus();
+  } else {
+    updateFavoriteButton(button, champion);
   }
-}
-
-// Renderizar la grilla de campeones
-function renderChampions(champions) {
-  const grid = document.getElementById("championsGrid");
-  const searchResults = document.getElementById("searchResults");
-
-  // Los paneles viven dentro de la grilla: se cierran antes de reconstruirla
-  closeBuild(true);
-
-  grid.innerHTML = "";
-
-  if (champions.length === 0) {
-    const emptyState = document.createElement("p");
-    emptyState.className = "champion-empty";
-    emptyState.textContent = "No se encontraron campeones.";
-    grid.appendChild(emptyState);
-    searchResults.textContent = "0 campeones";
-    return;
-  }
-
-  searchResults.textContent = `${champions.length} ${
-    champions.length === 1 ? "campeón" : "campeones"
-  }`;
-
-  champions.forEach((champion) => {
-    const card = document.createElement("article");
-    card.className = "champion-card";
-    card.setAttribute("aria-expanded", "false");
-
-    const selectButton = document.createElement("button");
-    selectButton.className = "champion-select";
-    selectButton.type = "button";
-    selectButton.setAttribute("aria-label", `Ver build de ${champion.name}`);
-
-    const image = document.createElement("img");
-    image.src = champion.image;
-    image.alt = "";
-    image.loading = "lazy";
-
-    const name = document.createElement("h3");
-    name.textContent = champion.name;
-    selectButton.append(image, name);
-
-    const favoriteButton = document.createElement("button");
-    favoriteButton.className = "favorite-btn";
-    favoriteButton.type = "button";
-    updateFavoriteButton(favoriteButton, champion);
-    favoriteButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      toggleFavorite(champion, favoriteButton);
-    });
-
-    selectButton.addEventListener("click", () =>
-      selectChampion(champion, card),
-    );
-    card.append(selectButton, favoriteButton);
-    grid.appendChild(card);
-  });
 }
 
 function updateChampionList() {
-  const search = normalizeSearchText(currentSearch.trim());
-  const filtered = allChampions.filter((champion) => {
-    const matchesLine = currentLine === "all" || champion.line === currentLine;
-    const matchesSearch =
-      !search || normalizeSearchText(champion.name).includes(search);
-    const matchesFavorites =
-      !favoritesOnly || favoriteChampionIds.has(favoriteKey(champion));
-    return matchesLine && matchesSearch && matchesFavorites;
-  });
+  const term = normalizeSearchText(currentSearch.trim());
+  const filtered = allChampions.filter((champion) =>
+    (currentLine === "all" || champion.line === currentLine) &&
+    (!term || normalizeSearchText(champion.name).includes(term)) &&
+    (!favoritesOnly || favoriteChampionIds.has(favoriteKey(champion))),
+  );
+  const list = get("championsGrid");
+  get("searchResults").textContent = filtered.length
+    ? filtered.length + (filtered.length === 1 ? " campeón" : " campeones")
+    : "No se encontraron campeones.";
 
-  renderChampions(filtered);
+  list.replaceChildren(...filtered.map((champion) => {
+    const card = element("li", "", "champion-card");
+    card.dataset.championId = champion.id;
+    const select = element("button", "", "champion-select");
+    select.type = "button";
+    select.setAttribute("aria-controls", "championProfile");
+    const image = element("img");
+    image.src = champion.image;
+    image.alt = "";
+    image.width = 38;
+    image.height = 38;
+    image.loading = "lazy";
+    select.append(image, element("span", champion.name));
+    select.addEventListener("click", () => openChampion(champion));
+
+    const favorite = element("button", "", "favorite-btn");
+    favorite.type = "button";
+    updateFavoriteButton(favorite, champion);
+    favorite.addEventListener("click", () => toggleFavorite(champion, favorite));
+    card.append(select, favorite);
+    return card;
+  }));
+  markSelectedChampion();
 }
 
-// Filtrar campeones por línea
-function filterChampionsByLine(line) {
-  currentLine = line;
-  updateChampionList(); // esto también cierra el build abierto
+function markSelectedChampion() {
+  for (const card of get("championsGrid").children) {
+    const selected = card.dataset.championId === currentChampion?.id;
+    card.classList.toggle("is-current", selected);
+    if (selected) card.firstElementChild.setAttribute("aria-current", "true");
+    else card.firstElementChild.removeAttribute("aria-current");
+  }
 }
 
-/* =========================================================
-   Build desplegable
-   ========================================================= */
-
-// Seleccionar campeón: el build se despliega justo debajo de su fila
-function selectChampion(champion, card) {
-  const grid = document.getElementById("championsGrid");
-
-  // Segundo click sobre el mismo campeón = cerrar
-  if (currentChampion === champion && buildUnfold.classList.contains("open")) {
-    closeBuild();
-    return;
+function setTab(activeTab, focus = false) {
+  for (const tab of tabs) {
+    const selected = tab === activeTab;
+    tab.setAttribute("aria-selected", String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+    get(tab.getAttribute("aria-controls")).hidden = !selected;
   }
+  if (focus) activeTab.focus();
+}
 
-  // Limpiar estado anterior
-  closeDetail(true);
-  if (activeChampionCard) {
-    activeChampionCard.classList.remove("is-active");
-    activeChampionCard.setAttribute("aria-expanded", "false");
-  }
-  buildUnfold.classList.remove("open");
-  buildUnfold.remove(); // así las posiciones de las tarjetas son las reales
-
+function renderChampion(champion) {
   currentChampion = champion;
-  activeChampionCard = card;
-  card.classList.add("is-active");
-  card.setAttribute("aria-expanded", "true");
-
-  // Insertarlo primero en el DOM: renderBuild busca sus campos por ID
-  // y getElementById no encuentra elementos dentro de un panel desconectado.
-  lastCardInRow(grid, card).after(buildUnfold);
-
-  // Actualizar información del campeón
-  document.getElementById("championImage").src = champion.image;
-  document.getElementById("championImage").alt = champion.name;
-  document.getElementById("championName").textContent = champion.name;
-  document.getElementById("championRole").textContent = champion.role;
-  document.getElementById("championDifficulty").textContent =
-    champion.difficulty;
-
-  renderTactics(champion);
+  const profile = get("championProfile");
+  for (const details of profile.querySelectorAll("details[open]")) details.open = false;
+  get("championImage").src = champion.image;
+  get("championName").textContent = champion.name;
+  get("championRole").textContent = [lineNames[champion.line], champion.role].filter(Boolean).join(" · ");
+  get("championDifficulty").textContent = champion.difficulty ? "Dificultad " + champion.difficulty.toLocaleLowerCase("es") : "";
   renderBuild();
-  openUnfold(buildUnfold);
-
-  // Acercar la tarjeta al inicio de la pantalla para ver el panel debajo
-  card.scrollIntoView({ behavior: "smooth", block: "start" });
+  renderTactics(champion.tactics);
+  markSelectedChampion();
+  profile.hidden = false;
 }
 
-function closeBuild(immediate = false) {
-  closeDetail(true);
-  closeUnfold(buildUnfold, immediate);
-  if (activeChampionCard) {
-    activeChampionCard.classList.remove("is-active");
-    activeChampionCard.setAttribute("aria-expanded", "false");
-    activeChampionCard = null;
+let catalogScroll = 0;
+
+function openChampion(champion) {
+  if (mobile.matches) catalogScroll = window.scrollY;
+  if (currentChampion !== champion) {
+    setTab(tabs[0]);
+    renderChampion(champion);
   }
-  currentChampion = null;
+  get("layout").classList.add("show-profile");
+  window.scrollTo(0, 0);
+  if (mobile.matches) get("championName").focus({ preventScroll: true });
 }
 
-function renderTactics(champion) {
-  const status = document.getElementById("tacticalStatus");
-  const sourceLink = document.getElementById("tacticalSource");
-  const data = champion.tactics;
-  const fillList = (id, items, formatter = (item) => item) => {
-    const list = document.getElementById(id);
-    list.innerHTML = "";
-    (items || []).forEach((item) => {
-      const li = document.createElement("li");
-      li.textContent = formatter(item);
-      list.appendChild(li);
-    });
-  };
+function backToCatalog() {
+  get("layout").classList.remove("show-profile");
+  const card = [...get("championsGrid").children].find((entry) => entry.dataset.championId === currentChampion?.id);
+  const target = card?.firstElementChild || get("championSearch");
+  window.scrollTo(0, catalogScroll);
+  target.focus({ preventScroll: true });
+}
 
-  if (!data) {
-    status.textContent =
-      "Esta ficha táctica todavía no está verificada para este campeón. La build sigue disponible; no mostramos combos ni sinergias inferidos.";
-    document.getElementById("comboContent").textContent =
-      "Perfil táctico pendiente de investigación individual.";
-    [
-      "strengthsList",
-      "weaknessesList",
-      "strategyList",
-      "synergiesList",
-      "matchupsList",
-    ].forEach((id) => fillList(id, []));
-    sourceLink.hidden = true;
-    return;
+function detailRow(name, fields, { slot, context } = {}) {
+  const row = element("details", "", slot ? "item-row purchase-row" : "item-row");
+  const summary = element("summary");
+  const label = element("span", name, "item-title");
+  const lead = element("span", "", "item-lead");
+  if (context) lead.append(element("span", context, "item-situation"));
+  lead.append(label);
+  if (slot) summary.append(element("span", slot, "slot-label"));
+  summary.append(lead);
+
+  const body = element("dl", "", "detail-body");
+  for (const [heading, value] of fields) {
+    if (!value) continue;
+    const field = element("div");
+    field.append(element("dt", heading), element("dd", value));
+    body.append(field);
   }
-
-  status.textContent = `Revisado para el parche ${data.patch}. Las recomendaciones de sinergia combinan fuente de guía y análisis del kit.`;
-  const comboRoot = document.getElementById("comboContent");
-  comboRoot.innerHTML = "";
-  (data.combos || []).forEach((combo) => {
-    const block = document.createElement("div");
-    block.className = "combo-block";
-    const title = document.createElement("h5");
-    title.textContent = combo.name;
-    const steps = document.createElement("ol");
-    combo.steps.forEach((step) => {
-      const li = document.createElement("li");
-      li.textContent = step;
-      steps.appendChild(li);
-    });
-    const use = document.createElement("p");
-    use.textContent = combo.use;
-    block.append(title, steps, use);
-    comboRoot.appendChild(block);
-  });
-  fillList("strengthsList", data.strengths);
-  fillList("weaknessesList", data.weaknesses);
-  fillList(
-    "strategyList",
-    data.strategy,
-    (item) => `${item.phase}: ${item.advice}`,
-  );
-  fillList(
-    "synergiesList",
-    data.synergies,
-    (item) => `${item.champion}: ${item.reason}`,
-  );
-  fillList("matchupsList", data.matchups);
-  if (data.sources?.length) {
-    sourceLink.href = data.sources[0].url;
-    sourceLink.textContent = "Ver fuentes de esta ficha ↗";
-    sourceLink.hidden = false;
-  } else sourceLink.hidden = true;
+  row.append(summary, body);
+  return row;
 }
 
-// Renderizar build completo
+function itemRow(item, { slot, situational = false } = {}) {
+  if (!item) {
+    const message = element("p", (slot ? slot + " · " : "") + "Sin datos de compra", "secondary");
+    return message;
+  }
+  return detailRow(item.name_es || item.name_en, [
+    ["Por qué funciona", item.reason],
+    ["Efecto", item.description],
+    ["Estadísticas", item.stats],
+    ["Costo", item.cost ? item.cost + " oro" : ""],
+    ["Nombre en inglés", item.name_es !== item.name_en ? item.name_en : ""],
+    ["Situación", situational ? "" : item.situation],
+  ], { slot, context: situational ? item.situation : "" });
+}
+
+function sourceLink(label, url) {
+  if (typeof url !== "string" || !/^https?:\/\//i.test(url)) return null;
+  const link = element("a", label);
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  return link;
+}
+
 function renderBuild() {
   if (!currentChampion) return;
-
-  closeDetail(true);
-
-  const builds = currentChampion.builds[currentMode];
-
-  // Renderizar items principales
-  renderItemSlot("startingItem", builds.starting);
-  renderItemSlot("bootsItem", builds.boots);
-  renderItemSlot("core1Item", builds.core1);
-  renderItemSlot("core2Item", builds.core2);
-  renderItemSlot("core3Item", builds.core3);
-
-  // Renderizar runas
-  renderRunes(builds.runes);
-
-  // Renderizar items situacionales
-  renderSituationalItems(builds.situational);
-}
-
-// Renderizar un slot de item
-function renderItemSlot(elementId, item) {
-  const element = document.getElementById(elementId);
-  const slot = element.closest(".item-slot");
-
-  if (item) {
-    element.innerHTML = `
-            <div class="item-name-main">${item.name_es}</div>
-            <div class="item-name-alt">${item.name_en}</div>
-            <div class="item-cost">${item.cost} oro</div>
-        `;
-    makeInteractive(slot, () =>
-      toggleDetail(slot, item.name_es, item.name_en, itemSections(item)),
-    );
-  } else {
-    element.innerHTML = '<p style="color: #666;">No disponible</p>';
-    makeInteractive(slot, null);
-  }
-}
-
-// Renderizar runas
-function renderRunes(runes) {
-  const runesGrid = document.getElementById("runesGrid");
-  runesGrid.innerHTML = "";
-
-  runes.forEach((rune) => {
-    const runeSlot = document.createElement("div");
-    runeSlot.className = "rune-slot";
-    runeSlot.innerHTML = `
-            <div class="rune-name">${rune.name_es}</div>
-            <div class="item-name-alt">${rune.name_en}</div>
-        `;
-
-    makeInteractive(runeSlot, () =>
-      toggleDetail(runeSlot, rune.name_es, rune.name_en, runeSections(rune)),
-    );
-
-    runesGrid.appendChild(runeSlot);
-  });
-}
-
-// Renderizar items situacionales
-function renderSituationalItems(items) {
-  const situationalGrid = document.getElementById("situationalGrid");
-  situationalGrid.innerHTML = "";
-
-  if (!items || items.length === 0) {
-    situationalGrid.innerHTML =
-      '<p style="color: #666; text-align: center; grid-column: 1/-1;">No hay items situacionales para este modo</p>';
+  const build = currentChampion.builds?.[currentMode];
+  const purchase = get("purchaseList");
+  const runes = get("runesGrid");
+  const situational = get("situationalGrid");
+  const extras = get("buildExtras");
+  purchase.replaceChildren();
+  runes.replaceChildren();
+  situational.replaceChildren();
+  extras.replaceChildren();
+  extras.hidden = true;
+  if (!build) {
+    purchase.append(element("p", "Todavía no hay una build para este modo.", "secondary"));
+    for (const list of [runes, situational]) list.closest("details").hidden = true;
     return;
   }
 
-  items.forEach((item) => {
-    const itemSlot = document.createElement("div");
-    itemSlot.className = "item-slot-situational";
-    itemSlot.innerHTML = `
-            <div class="item-name-main">${item.name_es}</div>
-            <div class="item-name-alt">${item.name_en}</div>
-            <div class="item-situation">${item.situation}</div>
-            <div class="item-cost">${item.cost} oro</div>
-        `;
+  purchase.append(...purchaseSlots.map(([key, label]) => itemRow(build[key], { slot: label })));
+  for (const rune of build.runes || []) {
+    runes.append(detailRow(rune.name_es || rune.name_en, [
+      ["Por qué funciona", rune.reason],
+      ["Efecto", rune.description],
+      ["Nombre en inglés", rune.name_es !== rune.name_en ? rune.name_en : ""],
+    ]));
+  }
+  for (const item of build.situational || []) {
+    situational.append(itemRow(item, { situational: true }));
+  }
+  for (const list of [runes, situational]) {
+    const disclosure = list.closest("details");
+    disclosure.hidden = !list.childElementCount;
+  }
 
-    makeInteractive(itemSlot, () =>
-      toggleDetail(itemSlot, item.name_es, item.name_en, itemSections(item)),
-    );
-
-    situationalGrid.appendChild(itemSlot);
-  });
+  if (build.spells?.length) extras.append(element("p", "Hechizos · " + build.spells.join(" + ")));
+  if (build.skill_priority?.length) extras.append(element("p", "Prioridad de habilidades · " + build.skill_priority.join(" → ")));
+  const link = sourceLink("Fuente de esta build", build.source);
+  if (link) extras.append(link);
+  extras.hidden = !extras.childElementCount;
 }
 
-/* =========================================================
-   Detalles desplegables (reemplazan al modal)
-   ========================================================= */
+function renderCombo(combo, notation) {
+  const entry = element("article", "", "combo-entry");
+  const sequence = Array.isArray(combo.sequence) ? combo.sequence : [];
+  const prefix = sequence.join(" + ") + " · ";
+  const name = sequence.length && combo.name?.startsWith(prefix) ? combo.name.slice(prefix.length) : combo.name;
+  if (name) entry.append(element("h4", name));
+  if (sequence.length) {
+    const keys = element("p", "", "combo-sequence");
+    for (const [index, key] of sequence.entries()) {
+      if (index > 0) keys.append(element("span", "+"));
+      keys.append(element("kbd", key));
+    }
+    entry.append(keys);
+  }
+  const use = typeof combo.use === "string" && notation && combo.use.endsWith(notation)
+    ? combo.use.slice(0, -notation.length).trimEnd()
+    : combo.use;
+  if (use) entry.append(element("p", use, "combo-use"));
+  if (combo.steps?.length) {
+    const details = element("details", "", "combo-steps");
+    const steps = element("ol");
+    for (const step of combo.steps) steps.append(element("li", step));
+    details.append(element("summary", "Ver paso a paso"), steps);
+    entry.append(details);
+  }
+  return entry;
+}
 
-function itemSections(item) {
+function renderChampionRelationship(entry) {
+  const name = typeof entry === "string" ? entry : entry?.champion;
+  if (typeof name !== "string" || !name.trim()) return null;
+
+  const row = element("li");
+  row.append(element("strong", name.trim()));
+  const reason = entry?.reason;
+  if (typeof reason === "string" && reason.trim()) {
+    row.append(document.createTextNode(" · " + reason.trim()));
+  }
+  return row;
+}
+
+function renderTactics(data) {
+  const comboList = get("comboContent");
+  const notation = get("comboNotation");
+  const status = get("tacticalStatus");
+  const phases = get("strategyList");
+  comboList.replaceChildren();
+  phases.replaceChildren();
+
+  notation.textContent = data?.combo_notation || "";
+  notation.hidden = !notation.textContent;
+  const combos = data?.combos || [];
+  if (combos.length) {
+    comboList.append(...combos.map((combo) => renderCombo(combo, notation.textContent)));
+  } else {
+    comboList.append(element("p", "La ficha aún no tiene combos.", "secondary"));
+  }
+
+  for (const step of data?.strategy || []) {
+    const row = element("li");
+    row.append(element("strong", step.phase), element("p", step.advice));
+    phases.append(row);
+  }
+  status.textContent = data?.patch ? "Ficha táctica · Parche " + data.patch : "El plan de partida está pendiente.";
+  status.hidden = false;
+
   const sections = [
-    { label: "Descripción", text: item.description },
-    { label: "Estadísticas", text: item.stats },
-    { label: "Costo", text: `${item.cost} oro`, cls: "item-cost" },
-    { label: "¿Por qué este item?", text: item.reason, cls: "item-reason" },
+    ["strengthsList", data?.strengths, (item) => element("li", item)],
+    ["weaknessesList", data?.weaknesses, (item) => element("li", item)],
+    ["synergiesList", data?.synergies, renderChampionRelationship],
+    ["matchupsList", data?.matchups, renderChampionRelationship],
+    ["tacticalSources", data?.sources, (item) => {
+      const row = element("li");
+      row.append(sourceLink(item.name, item.url) || element("span", item.name));
+      if (item.type) row.append(document.createTextNode(" · " + item.type));
+      return row;
+    }],
   ];
-  if (item.situation) {
-    sections.push({ label: "Situación", text: item.situation });
+  for (const [id, items, render] of sections) {
+    const list = get(id);
+    list.replaceChildren(...(items || []).map(render).filter(Boolean));
+    list.closest("details").hidden = !list.childElementCount;
   }
-  return sections.filter((section) => section.text);
 }
 
-function runeSections(rune) {
-  return [
-    { label: "Descripción", text: rune.description },
-    { label: "¿Por qué esta runa?", text: rune.reason, cls: "item-reason" },
-  ].filter((section) => section.text);
+function useData(data) {
+  if (!Array.isArray(data.champions) || !data.champions.length ||
+      data.champions.some((champion) =>
+        !champion || typeof champion.id !== "string" || typeof champion.name !== "string" || !champion.builds,
+      )) {
+    throw new Error("Archivo de campeones inválido");
+  }
+  allChampions = [...data.champions].sort((a, b) => collator.compare(a.name, b.name));
+  const patch = data.patch || allChampions.find((champion) => champion.tactics?.patch)?.tactics.patch;
+  const label = get("patch");
+  label.textContent = patch || "";
+  label.hidden = !patch;
+  get("localData").hidden = true;
+  updateChampionList();
+  renderChampion(allChampions.find((champion) => champion.id === "sylas") || allChampions[0]);
 }
 
-function createDetailUnfold() {
-  const el = document.createElement("div");
-  el.className = "unfold detail-unfold";
-  el.innerHTML = `
-    <div class="unfold-inner">
-      <div class="unfold-pad">
-        <div class="detail-panel" role="region" aria-live="polite">
-          <button type="button" class="detail-close" aria-label="Cerrar detalles">&times;</button>
-          <div class="detail-head">
-            <p class="detail-title"></p>
-            <p class="item-name-en"></p>
-          </div>
-          <div class="detail-body"></div>
-        </div>
-      </div>
-    </div>`;
-
-  el.querySelector(".detail-close").addEventListener("click", () => {
-    const card = activeDetailCard;
-    closeDetail();
-    if (card) card.focus();
-  });
-
-  return el;
-}
-
-// Abre / cambia / cierra el detalle justo debajo de la fila de la tarjeta
-function toggleDetail(card, nameEs, nameEn, sections) {
-  const container = card.parentElement;
-
-  // Segundo click sobre la misma tarjeta = cerrar
-  if (activeDetailCard === card && detailUnfold.classList.contains("open")) {
-    closeDetail();
+async function loadChampions() {
+  if (window.location.protocol === "file:") {
+    get("searchResults").textContent = "Carga los datos para abrir el catálogo.";
+    get("localData").hidden = false;
     return;
   }
-
-  const openHere =
-    detailUnfold.classList.contains("open") &&
-    detailUnfold.parentElement === container;
-
-  if (openHere) {
-    // Mismo grupo: solo cambia el contenido y se mueve, sin cerrar
-    if (activeDetailCard) {
-      activeDetailCard.classList.remove("is-active");
-      activeDetailCard.setAttribute("aria-expanded", "false");
-    }
-  } else {
-    closeDetail(true);
-  }
-
-  // Rellenar contenido
-  detailUnfold.querySelector(".detail-title").textContent = nameEs;
-  detailUnfold.querySelector(".item-name-en").textContent = nameEn || "";
-
-  const body = detailUnfold.querySelector(".detail-body");
-  body.innerHTML = "";
-  sections.forEach((section) => {
-    const block = document.createElement("div");
-    block.className = "item-detail";
-
-    const title = document.createElement("h4");
-    title.textContent = section.label;
-
-    const text = document.createElement("p");
-    text.textContent = section.text;
-    if (section.cls) text.className = section.cls;
-
-    block.append(title, text);
-    body.appendChild(block);
-  });
-
-  activeDetailCard = card;
-  card.classList.add("is-active");
-  card.setAttribute("aria-expanded", "true");
-
-  lastCardInRow(container, card).after(detailUnfold);
-  if (!openHere) openUnfold(detailUnfold);
-
-  // Si el panel queda fuera de pantalla, acercarlo cuando termine de abrirse
-  setTimeout(() => {
-    if (detailUnfold.classList.contains("open")) {
-      detailUnfold.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-  }, UNFOLD_MS);
-}
-
-function closeDetail(immediate = false) {
-  if (activeDetailCard) {
-    activeDetailCard.classList.remove("is-active");
-    activeDetailCard.setAttribute("aria-expanded", "false");
-    activeDetailCard = null;
-  }
-  closeUnfold(detailUnfold, immediate);
-}
-
-// Reubicar los paneles abiertos si cambia el número de columnas (resize)
-function repositionUnfolds() {
-  const grid = document.getElementById("championsGrid");
-
-  if (
-    buildUnfold.classList.contains("open") &&
-    activeChampionCard &&
-    buildUnfold.parentElement === grid
-  ) {
-    const target = lastCardInRow(grid, activeChampionCard);
-    if (target.nextElementSibling !== buildUnfold) target.after(buildUnfold);
-  }
-
-  if (detailUnfold.classList.contains("open") && activeDetailCard) {
-    const container = activeDetailCard.parentElement;
-    const target = lastCardInRow(container, activeDetailCard);
-    if (target.nextElementSibling !== detailUnfold) target.after(detailUnfold);
+  try {
+    const response = await fetch("champions.json", { cache: "no-cache" });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    useData(await response.json());
+  } catch (error) {
+    console.error(error);
+    get("searchResults").textContent = "No se pudieron cargar los campeones.";
+    get("localData").hidden = false;
   }
 }
 
-/* =========================================================
-   Filtros y arranque
-   ========================================================= */
-
-// Configurar event listeners para filtros
-function setupFilters() {
-  // Filtros de línea
-  document.querySelectorAll(".line-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      document
-        .querySelectorAll(".line-btn")
-        .forEach((b) => b.classList.remove("active"));
-      e.currentTarget.classList.add("active");
-      filterChampionsByLine(e.currentTarget.dataset.line);
-    });
-  });
-
-  const favoritesToggle = document.getElementById("favoritesToggle");
-  favoritesToggle.textContent = `☆ Favoritos (${favoriteChampionIds.size})`;
-  favoritesToggle.addEventListener("click", () => {
-    favoritesOnly = !favoritesOnly;
-    favoritesToggle.classList.toggle("active", favoritesOnly);
-    favoritesToggle.setAttribute("aria-pressed", String(favoritesOnly));
-    favoritesToggle.textContent = `${favoritesOnly ? "★" : "☆"} Favoritos (${favoriteChampionIds.size})`;
-    updateChampionList();
-  });
-
-  document.getElementById("championSearch").addEventListener("input", (e) => {
-    currentSearch = e.currentTarget.value;
-    updateChampionList();
-  });
-
-  // El panel se desconecta del documento al iniciar; enlazar sus botones directamente
-  buildUnfold.querySelectorAll(".mode-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      document
-        .querySelectorAll(".mode-btn")
-        .forEach((b) => b.classList.remove("active"));
-      e.currentTarget.classList.add("active");
-      currentMode = e.currentTarget.dataset.mode;
-      if (currentChampion) {
-        renderBuild();
-      }
-    });
-  });
-
-  // Escape cierra el detalle abierto
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && activeDetailCard) {
-      const card = activeDetailCard;
-      closeDetail();
-      card.focus();
-    }
-  });
-
-  // Reubicar paneles si cambia el ancho de la ventana
-  let resizeTimer;
-  window.addEventListener("resize", () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(repositionUnfolds, 150);
-  });
-}
-
-// Inicializar la aplicación
-document.addEventListener("DOMContentLoaded", () => {
-  buildUnfold = document.getElementById("buildUnfold");
-  buildUnfold.remove(); // arranca fuera de la página; se inserta al elegir campeón
-  detailUnfold = createDetailUnfold();
-
-  loadChampions();
-  setupFilters();
+get("dataFile").addEventListener("change", async (event) => {
+  const [file] = event.currentTarget.files;
+  if (!file) return;
+  try {
+    useData(JSON.parse(await file.text()));
+  } catch (error) {
+    console.error(error);
+    get("searchResults").textContent = "No se pudo leer el archivo. Selecciona el champions.json del proyecto.";
+    get("dataFile").value = "";
+  }
 });
+
+get("championSearch").addEventListener("input", (event) => {
+  currentSearch = event.currentTarget.value;
+  if (allChampions.length) updateChampionList();
+});
+
+get("lineFilter").addEventListener("change", (event) => {
+  currentLine = event.currentTarget.value;
+  if (allChampions.length) updateChampionList();
+});
+
+get("favoritesToggle").addEventListener("click", (event) => {
+  favoritesOnly = !favoritesOnly;
+  event.currentTarget.setAttribute("aria-pressed", String(favoritesOnly));
+  if (allChampions.length) updateChampionList();
+});
+
+get("backToChampions").addEventListener("click", backToCatalog);
+for (const [index, tab] of tabs.entries()) {
+  tab.addEventListener("click", () => setTab(tab));
+  tab.addEventListener("keydown", (event) => {
+    const targets = {
+      ArrowLeft: (index - 1 + tabs.length) % tabs.length,
+      ArrowRight: (index + 1) % tabs.length,
+      Home: 0,
+      End: tabs.length - 1,
+    };
+    if (!Object.hasOwn(targets, event.key)) return;
+    event.preventDefault();
+    setTab(tabs[targets[event.key]], true);
+  });
+}
+
+for (const button of modeButtons) {
+  button.addEventListener("click", () => {
+    if (currentMode === button.dataset.mode) return;
+    currentMode = button.dataset.mode;
+    for (const mode of modeButtons) mode.setAttribute("aria-pressed", String(mode === button));
+    renderBuild();
+  });
+}
+
+loadChampions();
+

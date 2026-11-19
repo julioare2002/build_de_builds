@@ -1,337 +1,204 @@
 <!doctype html>
-<html lang="es">
+<html lang="es-419">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wild Rift Builds - Guía de Campeones</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Build de Builds | Wild Rift</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@600;700;800&display=swap"
     />
     <link rel="stylesheet" href="styles.css" />
-
-    <!-- Estilos del despliegue (acordeón). Puedes moverlos luego a tu CSS. -->
-    <style>
-      /* Contenedor que se despliega suavemente (0 -> alto real del contenido) */
-      .unfold {
-        display: grid;
-        grid-column: 1 / -1;
-        min-width: 0;
-        grid-template-rows: 0fr;
-        visibility: hidden;
-        transition:
-          grid-template-rows 320ms ease,
-          visibility 0s linear 320ms;
-      }
-
-      .unfold.open {
-        grid-template-rows: 1fr;
-        visibility: visible;
-        transition:
-          grid-template-rows 320ms ease,
-          visibility 0s;
-      }
-
-      .unfold-inner {
-        min-height: 0;
-        overflow: hidden;
-      }
-
-      /* Espacio para que no se corten las sombras duras */
-      .unfold-pad {
-        padding: 0 12px 12px 0;
-      }
-
-      .build-unfold .build-display {
-        margin-top: 8px;
-      }
-
-      /* Tarjeta de campeón / ítem / runa que está abierta */
-      .champion-card {
-        scroll-margin-top: 16px;
-      }
-
-      .champion-card.is-active {
-        box-shadow:
-          0 0 0 4px var(--yellow),
-          8px 8px 0 var(--teal);
-      }
-
-      .item-slot.is-active,
-      .rune-slot.is-active,
-      .item-slot-situational.is-active {
-        box-shadow:
-          0 0 0 4px var(--yellow),
-          6px 6px 0 var(--ink);
-      }
-
-      /* Panel de detalles desplegable (reemplaza al modal) */
-      .detail-unfold {
-        margin-top: 4px;
-      }
-
-      .detail-panel {
-        position: relative;
-        margin-top: 6px;
-        padding: 18px 20px;
-        border: 3px solid var(--ink);
-        border-radius: 12px;
-        background: var(--cream);
-        box-shadow: 6px 6px 0 var(--teal);
-        color: var(--ink);
-      }
-
-      .detail-head {
-        margin-bottom: 14px;
-        padding: 0 40px 12px 0;
-        border-bottom: 3px dashed rgba(10, 15, 36, 0.3);
-      }
-
-      .detail-title {
-        color: var(--ink);
-        font-family: var(--font-title);
-        font-size: clamp(1.6rem, 4vw, 2.2rem);
-        letter-spacing: 0.03em;
-        line-height: 1.05;
-        text-transform: uppercase;
-        overflow-wrap: anywhere;
-      }
-
-      .detail-close {
-        position: absolute;
-        top: 10px;
-        right: 12px;
-        display: grid;
-        width: 32px;
-        height: 32px;
-        place-items: center;
-        border: 2px solid var(--ink);
-        border-radius: 50%;
-        background: var(--yellow);
-        color: var(--ink);
-        cursor: pointer;
-        font-family: var(--font-title);
-        font-size: 1.2rem;
-        line-height: 1;
-      }
-
-      .detail-close:hover {
-        background: var(--teal);
-      }
-
-      .detail-body {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 14px 24px;
-      }
-
-      /* Corrección: la etiqueta ya no se monta con nombres largos */
-      .item-slot {
-        justify-content: space-between;
-        gap: 12px;
-        padding: 12px 14px 14px;
-      }
-
-      .slot-label {
-        position: static;
-        flex: 0 0 auto;
-      }
-    </style>
+    <script src="app.js" defer></script>
   </head>
   <body>
-    <div class="container">
-      <header class="header">
-        <h1>WILD RIFT BUILDS</h1>
-        <p class="subtitle">Guía de builds actualizada</p>
-      </header>
+    <header class="site-header">
+      <div class="header-content">
+        <div class="brand"><span>Wild Rift Builds</span></div>
+        <span class="patch" id="patch" hidden></span>
+      </div>
+    </header>
 
-      <main class="main-content">
-        <!-- Filtro de líneas -->
-        <section class="line-filter">
-          <button class="line-btn active" data-line="all">Todas</button>
-          <button class="line-btn" data-line="top">Top</button>
-          <button class="line-btn" data-line="jungle">Jungla</button>
-          <button class="line-btn" data-line="mid">Mid</button>
-          <button class="line-btn" data-line="adc">ADC</button>
-          <button class="line-btn" data-line="support">Support</button>
-          <button
-            class="favorites-toggle"
-            id="favoritesToggle"
-            type="button"
-            aria-pressed="false"
-          >
-            ☆ Favoritos
-          </button>
-        </section>
-
-        <!-- Selector de campeones -->
-        <section class="champion-selector">
-          <h2>Selecciona un Campeón</h2>
-          <label class="search-label" for="championSearch"
+    <main class="layout" id="layout">
+      <aside class="catalog" aria-labelledby="catalogTitle">
+        <div class="catalog-controls">
+          <h1 id="catalogTitle">Campeones</h1>
+          <label class="visually-hidden" for="championSearch"
             >Buscar campeón</label
           >
-          <input
-            class="champion-search"
-            id="championSearch"
-            type="search"
-            placeholder="Escribe el nombre de un campeón..."
-            autocomplete="off"
-          />
-          <p class="search-results" id="searchResults" aria-live="polite"></p>
-          <div class="champions-grid" id="championsGrid">
-            <!-- Los campeones se cargarán aquí dinámicamente -->
+          <div class="search">
+            <input
+              type="search"
+              id="championSearch"
+              placeholder="Buscar campeón…"
+              autocomplete="off"
+            />
           </div>
-        </section>
-
-        <!-- Panel de build: el JS lo despliega justo debajo de la fila del campeón elegido -->
-        <div class="unfold build-unfold" id="buildUnfold">
-          <div class="unfold-inner">
-            <div class="unfold-pad">
-              <section class="build-display" id="buildDisplay">
-                <div class="build-header">
-                  <img
-                    id="championImage"
-                    src=""
-                    alt=""
-                    class="champion-image"
-                  />
-                  <div class="champion-info">
-                    <h2 id="championName"></h2>
-                    <p id="championRole" class="role-badge"></p>
-                    <p id="championDifficulty" class="difficulty-badge"></p>
-                  </div>
-                </div>
-
-                <section
-                  class="build-section tactical-section"
-                  id="strategySection"
-                  aria-labelledby="strategyTitle"
-                >
-                  <div class="tactical-heading">
-                    <div>
-                      <h3 id="strategyTitle">Análisis de partida</h3>
-                      <p class="section-subtitle">
-                        Combos, plan de mapa y composición para este campeón.
-                      </p>
-                    </div>
-                    <span class="patch-badge">Wild Rift · 7.3e</span>
-                  </div>
-                  <p
-                    class="tactical-status"
-                    id="tacticalStatus"
-                    aria-live="polite"
-                  ></p>
-                  <div class="tactical-grid">
-                    <article class="tactical-card combo-card">
-                      <h4>Combos recomendados</h4>
-                      <div id="comboContent"></div>
-                    </article>
-                    <article class="tactical-card">
-                      <h4>Fortalezas</h4>
-                      <ul id="strengthsList"></ul>
-                    </article>
-                    <article class="tactical-card">
-                      <h4>Debilidades y respuesta</h4>
-                      <ul id="weaknessesList"></ul>
-                    </article>
-                    <article class="tactical-card">
-                      <h4>Plan de partida</h4>
-                      <ul id="strategyList"></ul>
-                    </article>
-                    <article class="tactical-card">
-                      <h4>Dúos y sinergias</h4>
-                      <ul id="synergiesList"></ul>
-                    </article>
-                    <article class="tactical-card">
-                      <h4>Matchups difíciles</h4>
-                      <ul id="matchupsList"></ul>
-                    </article>
-                  </div>
-                  <a
-                    class="tactical-source"
-                    id="tacticalSource"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    hidden
-                    >Ver fuentes de esta ficha ↗</a
-                  >
-                </section>
-
-                <!-- Filtros de modo -->
-                <div class="build-filters">
-                  <div class="mode-filter">
-                    <button class="mode-btn active" data-mode="ranked">
-                      Ranked
-                    </button>
-                    <button class="mode-btn" data-mode="aram">ARAM</button>
-                  </div>
-                </div>
-
-                <!-- Items grid -->
-                <div class="build-section">
-                  <h3>Build Recomendado</h3>
-                  <p class="section-subtitle">
-                    Haz click en un item para desplegar detalles y justificación
-                  </p>
-
-                  <div class="items-container">
-                    <div class="items-row">
-                      <div class="item-slot" data-slot="starting">
-                        <div class="slot-label">Inicio</div>
-                        <div class="item-content" id="startingItem"></div>
-                      </div>
-                      <div class="item-slot" data-slot="boots">
-                        <div class="slot-label">Botas</div>
-                        <div class="item-content" id="bootsItem"></div>
-                      </div>
-                      <div class="item-slot" data-slot="core1">
-                        <div class="slot-label">Core 1</div>
-                        <div class="item-content" id="core1Item"></div>
-                      </div>
-                      <div class="item-slot" data-slot="core2">
-                        <div class="slot-label">Core 2</div>
-                        <div class="item-content" id="core2Item"></div>
-                      </div>
-                      <div class="item-slot" data-slot="core3">
-                        <div class="slot-label">Core 3</div>
-                        <div class="item-content" id="core3Item"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Runas -->
-                <div class="build-section">
-                  <h3>Runas</h3>
-                  <p class="section-subtitle">
-                    Haz click en una runa para desplegar detalles
-                  </p>
-                  <div class="runes-grid" id="runesGrid">
-                    <!-- Runas se cargarán aquí -->
-                  </div>
-                </div>
-
-                <!-- Items Situacionales -->
-                <div class="build-section">
-                  <h3>Items Situacionales</h3>
-                  <p class="section-subtitle">Opciones según el matchup</p>
-                  <div class="items-grid" id="situationalGrid">
-                    <!-- Items situacionales se cargarán aquí -->
-                  </div>
-                </div>
-              </section>
-            </div>
+          <div class="catalog-filters">
+            <label class="visually-hidden" for="lineFilter">Carril</label>
+            <select id="lineFilter">
+              <option value="all">Todos los carriles</option>
+              <option value="top">Barón</option>
+              <option value="jungle">Jungla</option>
+              <option value="mid">Central</option>
+              <option value="adc">Dragón</option>
+              <option value="support">Soporte</option>
+            </select>
+            <button
+              type="button"
+              id="favoritesToggle"
+              class="favorites-toggle"
+              aria-pressed="false"
+            >
+              Favoritos
+            </button>
+          </div>
+          <p class="search-results" id="searchResults" role="status">
+            Cargando campeones…
+          </p>
+          <div class="local-data" id="localData" hidden>
+            <label for="dataFile"
+              >Selecciona el archivo champions.json de esta carpeta.</label
+            >
+            <input type="file" id="dataFile" accept=".json,application/json" />
           </div>
         </div>
-      </main>
+        <ul
+          class="champion-list"
+          id="championsGrid"
+          aria-label="Lista de campeones"
+        ></ul>
+      </aside>
 
-      <footer class="footer">
-        <p>Proyecto personal - Datos actualizados manualmente</p>
-      </footer>
-    </div>
+      <div class="content">
+        <section id="championProfile" aria-labelledby="championName" hidden>
+          <button class="back-button" id="backToChampions" type="button">
+            <span aria-hidden="true">‹</span> Campeones
+          </button>
+          <header class="profile-heading">
+            <img
+              id="championImage"
+              class="profile-image"
+              alt=""
+              width="80"
+              height="80"
+            />
+            <div>
+              <h2 id="championName" tabindex="-1"></h2>
+              <p id="championRole" class="profile-role"></p>
+              <p id="championDifficulty" class="profile-difficulty"></p>
+            </div>
+          </header>
 
-    <script src="app.js"></script>
+          <div class="tabs" role="tablist" aria-label="Ficha del campeón">
+            <button
+              type="button"
+              id="tab-build"
+              role="tab"
+              aria-selected="true"
+              aria-controls="panel-build"
+            >
+              Build
+            </button>
+            <button
+              type="button"
+              id="tab-combos"
+              role="tab"
+              aria-selected="false"
+              aria-controls="panel-combos"
+              tabindex="-1"
+            >
+              Combos
+            </button>
+            <button
+              type="button"
+              id="tab-plan"
+              role="tab"
+              aria-selected="false"
+              aria-controls="panel-plan"
+              tabindex="-1"
+            >
+              Plan de partida
+            </button>
+          </div>
+
+          <section
+            class="tab-panel"
+            id="panel-build"
+            role="tabpanel"
+            aria-labelledby="tab-build"
+            tabindex="0"
+          >
+            <div class="mode-switch" role="group" aria-label="Modo de juego">
+              <button type="button" data-mode="ranked" aria-pressed="true">
+                Ranked
+              </button>
+              <button type="button" data-mode="aram" aria-pressed="false">
+                ARAM
+              </button>
+            </div>
+            <h3>Ruta de compra</h3>
+            <div class="purchase-list" id="purchaseList"></div>
+            <details class="section-disclosure">
+              <summary>Runas</summary>
+              <div class="disclosure-body" id="runesGrid"></div>
+            </details>
+            <details class="section-disclosure">
+              <summary>Objetos situacionales</summary>
+              <div class="disclosure-body" id="situationalGrid"></div>
+            </details>
+            <div class="build-extra" id="buildExtras" hidden></div>
+          </section>
+
+          <section
+            class="tab-panel"
+            id="panel-combos"
+            role="tabpanel"
+            aria-labelledby="tab-combos"
+            tabindex="0"
+            hidden
+          >
+            <h3>Combos recomendados</h3>
+            <p class="secondary" id="comboNotation" hidden></p>
+            <div id="comboContent"></div>
+          </section>
+
+          <section
+            class="tab-panel"
+            id="panel-plan"
+            role="tabpanel"
+            aria-labelledby="tab-plan"
+            tabindex="0"
+            hidden
+          >
+            <h3>Plan de partida</h3>
+            <ol class="phases" id="strategyList"></ol>
+            <p id="tacticalStatus" class="secondary" hidden></p>
+            <details class="section-disclosure tactical-disclosure">
+              <summary>Fortalezas</summary>
+              <ul class="disclosure-body text-list" id="strengthsList"></ul>
+            </details>
+            <details class="section-disclosure tactical-disclosure">
+              <summary>Debilidades y respuesta</summary>
+              <ul class="disclosure-body text-list" id="weaknessesList"></ul>
+            </details>
+            <details class="section-disclosure tactical-disclosure">
+              <summary>Dúos y sinergias</summary>
+              <ul class="disclosure-body text-list" id="synergiesList"></ul>
+            </details>
+            <details class="section-disclosure tactical-disclosure">
+              <summary>Enfrentamientos difíciles</summary>
+              <ul class="disclosure-body text-list" id="matchupsList"></ul>
+            </details>
+            <details class="section-disclosure tactical-disclosure">
+              <summary>Fuentes de la ficha</summary>
+              <ul class="disclosure-body text-list" id="tacticalSources"></ul>
+            </details>
+          </section>
+        </section>
+      </div>
+    </main>
   </body>
 </html>
